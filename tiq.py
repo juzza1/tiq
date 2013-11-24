@@ -68,7 +68,7 @@ def quant_np(colors, palette):
 
 # Argument parsing
 parser = argparse.ArgumentParser(description=
-                    'Convert RGB images to TTD-paletted images.')
+                    "Convert images to TTD-paletted images.")
 parser.add_argument('inimage', help="name of the input image")
 parser.add_argument('outimage', help="name of the output image")
 parser.add_argument('-w', '--winpal', action='store_true',
@@ -80,6 +80,7 @@ args = parser.parse_args()
 imagename = args.inimage
 outimagename = args.outimage
 
+# Decide palettes used for quantization and output. Do not use pink colors.
 if args.winpal:
     outpal = palettes.pals('win', 'raw')
     if args.noact:
