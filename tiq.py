@@ -13,9 +13,9 @@ import palettes
 start_time = time.time()
 
 def now(what):
-    "Print time elapsed so far"
-    #print what, "after", time.time() - start_time, "seconds"
+    "Print time elapsed so far with a variable message"
     pass
+    #print what, "after", time.time() - start_time, "seconds"
 
 def euc_distance(x1, x2, x3, y1, y2, y3):
     "Eucledian distance between two points in 3-dimensional space"
@@ -80,8 +80,6 @@ args = parser.parse_args()
 imagename = args.inimage
 outimagename = args.outimage
 
-im = read_rgb(imagename)
-
 if args.winpal:
     outpal = palettes.pals('win', 'raw')
     if args.noact:
@@ -95,6 +93,9 @@ else:
     else:
         quantpal = palettes.pals('dos', 'nopink')
 
+im = read_rgb(imagename)
+now("Image read after")
+
 imuniq = uniq_colors(im)
 now("Unique colors found after")
 
@@ -103,8 +104,8 @@ now("Quantization done after")
 
 outimg = Image.new('P', im.size, None)
 outimg.putpalette(outpal)
-
 replace_colors(im, outimg, immap)
+now("Output pixels filled after")
 
 outimg.save(outimagename)
 now("Save done after")
