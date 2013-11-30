@@ -54,7 +54,7 @@ def quant_brute(colors, palette):
                 mapping[i] = index
     return mapping
 
-def quant_np(colors, palette):
+def quant_np(colors, palette, precision=None):
     """Calculate the closest match between the unique colors in the source
     image and the chosen TTD palette using numpy arrays and scipy
     spatial distance module. Much faster than the "brute" method."""
@@ -63,7 +63,17 @@ def quant_np(colors, palette):
     dists = spspat.distance.cdist(imar, palar, metric='euclidean')
     mapping = {}
     for index, item in enumerate(colors):
-        mapping[item] = np.argmin(dists[index])
+        if precision == 'precise':
+            if min(dists[index]) == 0:
+                mapping[item] = palette[np.argmin(dists[index])]
+        else:
+            mapping[item] = palette[np.argmin(dists[index])]
+    return mapping
+
+def indexify(mapping, palette):
+    "Get the indexes for palette entries in mapping"
+    for i in mapping:
+        mapping[i] = palette.index(mapping[i])
     return mapping
 
 # Argument parsing
@@ -83,16 +93,22 @@ outimagename = args.outimage
 # Decide palettes used for quantization and output. Do not use pink colors.
 if args.winpal:
     outpal = palettes.pals('win', 'raw')
+    outfullpal = palettes.pals('win')
     if args.noact:
+        noquantpal = palettes.pals('win', 'blue')
         quantpal = palettes.pals('win', 'noact')
     else:
-        quantpal = palettes.pals('win', 'nopink')
+        noquantpal = palettes.pals('win', 'blueact')
+        quantpal = palettes.pals('win', 'noact')
 else:
     outpal = palettes.pals('dos', 'raw')
+    outfullpal = palettes.pals('dos')
     if args.noact:
+        noquantpal = palettes.pals('dos', 'blue')
         quantpal = palettes.pals('dos', 'noact')
     else:
-        quantpal = palettes.pals('dos', 'nopink')
+        noquantpal = palettes.pals('dos', 'blueact')
+        quantpal = palettes.pals('dos', 'noact')
 
 im = read_rgb(imagename)
 now("Image read after")
@@ -100,8 +116,15 @@ now("Image read after")
 imuniq = uniq_colors(im)
 now("Unique colors found after")
 
+print noquantpal
+print quantpal
+
+immap_noquant = quant_np(imuniq, noquantpal, 'precise')
 immap = quant_np(imuniq, quantpal)
+immap.update(immap_noquant)
+immap = indexify(immap, outfullpal)
 now("Quantization done after")
+#print immap
 
 outimg = Image.new('P', im.size, None)
 outimg.putpalette(outpal)
