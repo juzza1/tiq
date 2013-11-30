@@ -116,8 +116,8 @@ now("Image read after")
 imuniq = uniq_colors(im)
 now("Unique colors found after")
 
-print noquantpal
-print quantpal
+#print noquantpal
+#print quantpal
 
 immap_noquant = quant_np(imuniq, noquantpal, 'precise')
 immap = quant_np(imuniq, quantpal)
