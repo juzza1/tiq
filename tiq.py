@@ -175,14 +175,14 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter, description=(
-            "Convert images to TTD-paletted PNGs. By default, the dos palette "
-            "is used."))
+            "Convert images to TTD-paletted images. By default, the dos "
+            "palette is used."))
 
     parser.add_argument('infile', help=
             'The input file. Use "-" to read from standard input.')
     parser.add_argument('outfile', help=(
-            'The output file, saved as png regardless of input-file\n'
-            'extension. Use "-" to write to standard output.'))
+            'The output file. Use "-" to write to standard output.\n'
+            'In this case, the format will be PNG.'))
 
     parser.add_argument('-a', '--no-action-colors', action='store_true',
             help="Don't use action colors.")
