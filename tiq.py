@@ -227,7 +227,7 @@ def parse_arguments():
         out = sys.stdout
     else:
         out = args.outfile
-    img.save(out, 'PNG', option='optimize')
+    img.save(out, option='optimize')
 
 if __name__ == '__main__':
     parse_arguments()
