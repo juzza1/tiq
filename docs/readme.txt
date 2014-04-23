@@ -55,12 +55,14 @@ Cloning with mercurial: "hg clone http://hg.openttdcoop.org/tiq"
 
 2.3 Usage
 ---------
-tiq.py [-h] [-a] [-c] [-w | -dt | -wt] infile outfile
+usage: tiq.py [-h] [-a] [-c] [-w | -dt | -wt] infile outfile
+
+Convert images to TTD-paletted images. By default, the dos palette is used.
 
 positional arguments:
   infile                The input file. Use "-" to read from standard input.
-  outfile               The output file, saved as png regardless of input-file
-                        extension. Use "-" to write to standard output.
+  outfile               The output file. Use "-" to write to standard output.
+                        In this case, the format will be PNG.
 
 optional arguments:
   -h, --help            show this help message and exit
