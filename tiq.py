@@ -224,10 +224,10 @@ def parse_arguments():
     img = main(img, pal, ignored_colors)
 
     if args.outfile== '-':
-        out = sys.stdout
+        # Force PNG if stdout is chosen
+        img.save(sys.stdout, 'PNG', option='optimize')
     else:
-        out = args.outfile
-    img.save(out, option='optimize')
+        img.save(args.outfile, option='optimize')
 
 if __name__ == '__main__':
     parse_arguments()

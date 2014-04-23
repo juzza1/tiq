@@ -28,7 +28,8 @@ TIQ - TTD Image Quantizer
 
 TIQ is a tool which converts most image types into TTD-compatible 256-colour
 images. Output works for any image type which supports palettes. For NewGRF
-usage, PCX or PNG is the obvious choice. More info about file formats:
+usage, PCX or PNG is the obvious choice. If STDOUT is chosen for output, the
+format will be PNG. More info about file formats:
 http://pillow.readthedocs.org/en/latest/handbook/image-file-formats.html
 
 
