@@ -1,135 +1,233 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python
+#
+# TIQ - TTD Image Quantizer
+#
+# by juzza1
+#
+# To the extent possible under law, the author(s) have dedicated all copyright
+# and related and neighboring rights to this software to the public domain
+# worldwide. This software is distributed without any warranty. 
+#
+# You should have received a copy of the CC0 Public Domain Dedication along
+# with this software. If not, see
+# <http://creativecommons.org/publicdomain/zero/1.0/>. 
+#
 import argparse
+import collections
 import math 
 from PIL import Image
-import numpy as np
-import scipy.spatial as spspat
+from StringIO import StringIO
 import sys
 import time
 
-import palettes
+from palette import palettes
 
-start_time = time.time()
+def now(event):
+    """Print time elapsed so far with a variable message."""
+    print event, "after", time.time() - start_time, "seconds"
 
-def now(what):
-    "Print time elapsed so far with a variable message"
-    pass
-    #print what, "after", time.time() - start_time, "seconds"
+def euc_distance(x, y):
+    """Euclidean distance between two points in 3-dimensional space"""
+    formula = (x[0]-y[0])**2 + (x[1]-y[1])**2 + (x[2]-y[2])**2
+    result = math.sqrt(formula)
+    return result
 
-def euc_distance(x1, x2, x3, y1, y2, y3):
-    "Eucledian distance between two points in 3-dimensional space"
-    return math.sqrt((x1-y1)**2 + (x2-y2)**2 + (x3-y3)**2)
+def replace_colors(img_in, palette, mapping):
+    """
+    Insert pixels into the new image, using a mapping to choose the best
+    replacement from the TTD palette for each unique color.
+    """
+    pixels_in = img_in.load()
+    # Flatten the palette from a list of 3-tuples to a list of integer values
+    img_out = Image.new('P', img_in.size, color=None)
+    img_out.putpalette(palette)
+    pixels_out = img_out.load()
+    for y in range(img_in.size[1]):
+        for x in range (img_in.size[0]):
+            pixels_out[x, y] = mapping[pixels_in[x, y]]
+    return img_out
 
-def replace_colors(inim, outim, mapping):
-    """Insert pixels into the new image, using a mapping to choose the
-    best replacement from the TTD palette for each unique color"""
-    inpix = inim.load()
-    outpix = outim.load()
-    for i in range(inim.size[1]):
-        for n in range (inim.size[0]):
-            outpix[n, i] = mapping[inpix[n, i]]
+def convert(img, bg):
+    """
+    Force the image to RGB mode.
 
-def read_rgb(imagename):
-    "Read image and make sure it's in RGB format"
-    im = Image.open(imagename)
-    im = im.convert('RGB')
-    return im
+    For RGBA images, convert all transparent pixels to bg color.
+    """
+    if img.mode == 'RGBA':
+        pixels = img.load()
+        for y in range(img.size[1]):
+            for x in range (img.size[0]):
+                if pixels[x, y][3] < 255:
+                    pixels[x, y] = bg
+        img = img.convert('RGB')
+    else:
+        img = img.convert('RGB')
+    return img
 
-def uniq_colors(im):
-    "Make a list of all the unique colors in the image"
-    colors = [i[1] for i in im.getcolors(maxcolors=256**3)]
+def get_unique_colors(img):
+    """Make a list of all the unique colors in the image"""
+    # getcolors returns (count, pixel) we don't care about the count, at least
+    # not for now
+    colors = [i[1] for i in img.getcolors(maxcolors=img.size[0]*img.size[1])]
     return colors
 
-def quant_brute(colors, palette):
-    """Calculate the closest match between the unique colors in the source
-    image and the chosen TTD palette using simple iteration."""
-    mapping = {}
-    for i in colors:
-        quantized_min = 255
-        for index, color in enumerate(palette):
-            quantized = euc_distance(*i+color)
-            if quantized < quantized_min:
-                quantized_min = quantized
-                mapping[i] = index
-    return mapping
-
-def quant_np(colors, palette, precision=None):
-    """Calculate the closest match between the unique colors in the source
-    image and the chosen TTD palette using numpy arrays and scipy
-    spatial distance module. Much faster than the "brute" method."""
-    imar = np.array(colors)
-    palar = np.array(palette)
-    dists = spspat.distance.cdist(imar, palar, metric='euclidean')
-    mapping = {}
-    for index, item in enumerate(colors):
-        if precision == 'precise':
-            if min(dists[index]) == 0:
-                mapping[item] = palette[np.argmin(dists[index])]
-        else:
-            mapping[item] = palette[np.argmin(dists[index])]
-    return mapping
-
 def indexify(mapping, palette):
-    "Get the indexes for palette entries in mapping"
+    """Translate RGB values to palette indices"""
     for i in mapping:
         mapping[i] = palette.index(mapping[i])
     return mapping
 
-# Argument parsing
-parser = argparse.ArgumentParser(description=
-                    "Convert images to TTD-paletted images.")
-parser.add_argument('inimage', help="name of the input image")
-parser.add_argument('outimage', help="name of the output image")
-parser.add_argument('-w', '--winpal', action='store_true',
-                    help="use windows palette instead of dos palette")
-parser.add_argument('-n', '--noact', action='store_true',
-                    help="disable all action colors")
-args = parser.parse_args()
+def quant_brute(colors, palette):
+    """
+    Calculate the closest match between the unique colors in the source image
+    and the chosen TTD palette using simple iteration.
+    """
+    mapping = {}
+    best_match = 0
+    for color in colors:
+        quantized_min = 255
+        for entry in palette:
+            quantized = euc_distance(color, entry)
+            if quantized < quantized_min:
+                quantized_min = quantized
+                best_match = entry
+        mapping[color] = best_match
+    return mapping
 
-imagename = args.inimage
-outimagename = args.outimage
-
-# Decide palettes used for quantization and output. Do not use pink colors.
-if args.winpal:
-    outpal = palettes.pals('win', 'raw')
-    outfullpal = palettes.pals('win')
-    if args.noact:
-        noquantpal = palettes.pals('win', 'blue')
-        quantpal = palettes.pals('win', 'noact')
+def quant_sp(colors, palette):
+    """
+    Calculate the closest match between the unique colors in the source image
+    and the chosen TTD palette using numpy arrays and scipy spatial distance
+    module. Around 500% faster than the "brute" method.
+    """
+    try:
+        __import__('numpy')
+        __import__('scipy')
+    except ImportError:
+        pass
     else:
-        noquantpal = palettes.pals('win', 'blueact')
-        quantpal = palettes.pals('win', 'noact')
-else:
-    outpal = palettes.pals('dos', 'raw')
-    outfullpal = palettes.pals('dos')
-    if args.noact:
-        noquantpal = palettes.pals('dos', 'blue')
-        quantpal = palettes.pals('dos', 'noact')
+        import numpy as np
+        import scipy.spatial
+
+        colors_numpy = np.array(colors)
+        palette_numpy = np.array(palette)
+        # dists holds the values of all the distances between the points in
+        # array 1 and array 2
+        dists = scipy.spatial.distance.cdist(colors_numpy, palette_numpy,
+                'euclidean')
+        mapping = {}
+        # np.argmin(dists[index]) gets the lowest euclidean distance for this
+        # unique color, which is also the palette index. The palette color is
+        # then retrieved with the index value.
+        for index, item in enumerate(colors):
+            mapping[item] = palette[np.argmin(dists[index])]
+        return mapping
+
+def flatten(list_):
+    """Flatten lists of tuples into a list of tuples"""
+    for i in list_:
+        if isinstance(i, collections.Iterable) and not isinstance(i, tuple):
+            for j in flatten(i):
+                yield j
+        else:
+            yield i
+
+def update_constant_colors(mapping, colors):
+    """
+    Add values to color mapping.
+
+    Some special colors, namely the background color and action colors should
+    never be quantized into. Therefore we add these colors to the final mapping
+    after quantization.
+    """
+    cols = {}
+    for i in colors:
+        cols[i] = i
+    mapping.update(cols)
+    return mapping
+
+def main(img, palette, ignored_colors=None):
+    """
+    The main method for quantization that combines all the required methods.
+    """
+    img = convert(img, palette.bg)
+    colors = get_unique_colors(img)
+    try:
+        __import__('numpy')
+        __import__('scipy')
+    except ImportError:
+        mapping = quant_brute(colors, palette.neutral)
     else:
-        noquantpal = palettes.pals('dos', 'blueact')
-        quantpal = palettes.pals('dos', 'noact')
+        mapping = quant_sp(colors, palette.neutral)
+    no_quant_colors = [palette.bg, palette.onecc, palette.act, palette.white]
+    # flatten returns a generator, so convert it to list
+    no_quant_colors = list(flatten(no_quant_colors))
+    if ignored_colors:
+        for i in flatten(ignored_colors):
+            no_quant_colors.remove(i)
+    mapping = update_constant_colors(mapping, no_quant_colors)
+    mapping = indexify(mapping, palette.full)
+    img = replace_colors(img, palette.raw, mapping)
+    return img
 
-im = read_rgb(imagename)
-now("Image read after")
+def parse_arguments():
+    """Command-line argument parsing"""
 
-imuniq = uniq_colors(im)
-now("Unique colors found after")
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter, description=(
+            "Convert images to TTD-paletted PNGs. By default, the dos palette "
+            "is used."))
 
-#print noquantpal
-#print quantpal
+    parser.add_argument('infile', help=
+            'The input file. Use "-" to read from standard input.')
+    parser.add_argument('outfile', help=(
+            'The output file, saved as png regardless of input-file\n'
+            'extension. Use "-" to write to standard output.'))
 
-immap_noquant = quant_np(imuniq, noquantpal, 'precise')
-immap = quant_np(imuniq, quantpal)
-immap.update(immap_noquant)
-immap = indexify(immap, outfullpal)
-now("Quantization done after")
-#print immap
+    parser.add_argument('-a', '--no-action-colors', action='store_true',
+            help="Don't use action colors.")
+    parser.add_argument('-c', '--no-cc-colors', action='store_true',
+            help="Don't use cc colors.")
 
-outimg = Image.new('P', im.size, None)
-outimg.putpalette(outpal)
-replace_colors(im, outimg, immap)
-now("Output pixels filled after")
+    group = parser.add_mutually_exclusive_group()
 
-outimg.save(outimagename)
-now("Save done after")
+    group.add_argument('-w', '--windows', action='store_true',
+            help="Use windows palette")
+    group.add_argument('-dt', '--dos-toyland', action='store_true',
+            help="Use dos toyland palette")
+    group.add_argument('-wt', '--windows-toyland', action='store_true',
+            help="Use windows toyland palette")
+
+    args = parser.parse_args()
+
+    if args.infile == '-':
+        in_ = StringIO(sys.stdin.read())
+    else:
+        in_ = args.infile
+    img = Image.open(in_)
+
+    if args.windows:
+        pal = palettes['win']
+    elif args.dos_toyland:
+        pal = palettes['dos_toyland']
+    elif args.windows_toyland:
+        pal = palettes['win_toyland']
+    else:
+        pal = palettes['dos']
+    
+    ignored_colors = []
+    if args.no_action_colors:
+        ignored_colors.extend(pal.act)
+    if args.no_cc_colors:
+        ignored_colors.extend(pal.onecc)
+
+    img = main(img, pal, ignored_colors)
+
+    if args.outfile== '-':
+        out = sys.stdout
+    else:
+        out = args.outfile
+    img.save(out, 'PNG', option='optimize')
+
+if __name__ == '__main__':
+    parse_arguments()
