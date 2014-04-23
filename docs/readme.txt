@@ -10,6 +10,7 @@ TIQ - TTD Image Quantizer
     2.1  Requirements
     2.2  Installation
     2.3  Usage
+    2.4  Notes about special colors
 3   Known issues
 4   Frequently Asked Questions
 5   Credits
@@ -43,18 +44,16 @@ http://pillow.readthedocs.org/en/latest/handbook/image-file-formats.html
 ----------------
 - Numpy
 - Scipy
-Having these packages available will increase quantization speed by up to 500%.
-
+Having these packages available will greatly increase quantization speed.
 
 2.2 Installation
 ----------------
-There is no installer. Only thing required to run the program is to download
-it from the devzone repository.
+There is no installer. Only thing required to run the program is to download it
+from the devzone repository.
 Cloning with mercurial: "hg clone http://hg.openttdcoop.org/tiq"
 
 2.3 Usage
 ---------
-
 tiq.py [-h] [-a] [-c] [-w | -dt | -wt] infile outfile
 
 positional arguments:
@@ -71,6 +70,16 @@ optional arguments:
   -dt, --dos-toyland    Use dos toyland palette
   -wt, --windows-toyland
                         Use windows toyland palette
+
+2.4 Notes about special colors
+---------
+Some special colors are never quantized into, unless the color in the input
+file matches the special color 1:1. These include action colors, cc (blue)
+colors, background blue and pure white. Additionally, action and cc colors can
+be omitted altogether with optional parameters.
+
+The legacy API pink colors are never used in the actual image, as they are
+considered unsafe.
 
 
 --------------
@@ -105,7 +114,7 @@ of this program.
 6.2 General enquiries
 ---------------------
 
-I'm on irc at irc.otfc.net, at channels #openttd and #openttdcoop.devzone
+I'm on irc at irc.otfc.net, at #openttd and #openttdcoop.devzone
 
 You can also contact me via private message at www.tt-forums.net, or file an
 issue at the project devzone site.
