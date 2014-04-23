@@ -1,4 +1,5 @@
-.*.pyc
-.tiq.py.swp
+syntax: glob
+*.pyc
+*.swp
 .~
-lion.png
+*.png
