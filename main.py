@@ -146,7 +146,7 @@ def update_constant_colors(mapping, colors):
     mapping.update(cols)
     return mapping
 
-def main(img, palette, ignored_colors=None):
+def run(img, palette, ignored_colors=None):
     """
     The main method for quantization that combines all the required methods.
     """
@@ -170,7 +170,7 @@ def main(img, palette, ignored_colors=None):
     img = replace_colors(img, palette.raw, mapping)
     return img
 
-def parse_arguments():
+def main():
     """Command-line argument parsing"""
 
     parser = argparse.ArgumentParser(
@@ -221,7 +221,7 @@ def parse_arguments():
     if args.no_cc_colors:
         ignored_colors.extend(pal.onecc)
 
-    img = main(img, pal, ignored_colors)
+    img = run(img, pal, ignored_colors)
 
     if args.outfile== '-':
         # Force PNG if stdout is chosen
@@ -230,4 +230,4 @@ def parse_arguments():
         img.save(args.outfile, option='optimize')
 
 if __name__ == '__main__':
-    parse_arguments()
+    main()
