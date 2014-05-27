@@ -45,6 +45,7 @@ http://pillow.readthedocs.org/en/latest/handbook/image-file-formats.html
 ----------------
 - Numpy
 - Scipy
+
 Having these packages available will greatly increase quantization speed.
 
 2.2 Installation
@@ -55,7 +56,7 @@ Cloning with mercurial: "hg clone http://hg.openttdcoop.org/tiq"
 
 2.3 Usage
 ---------
-usage: tiq.py [-h] [-a] [-c] [-w | -dt | -wt] infile outfile
+usage: tiq [-h] [-a] [-c] [-w | -dt | -wt] infile outfile
 
 Convert images to TTD-paletted images. By default, the dos palette is used.
 
