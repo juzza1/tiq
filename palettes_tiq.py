@@ -15,7 +15,7 @@
 import palettes_ttd
 
 
-class TiqPalette:
+class _TiqPalette:
 
     def __init__(self, palette, act, neutral, onecc, pink, twocc):
         self.palette = palette
@@ -43,20 +43,20 @@ class TiqPalette:
                       "desc": "Pure white."}
         }
 
-dos_spec = {"act": [(227, 254)],
+_dos_spec = {"act": [(227, 254)],
             "neutral": [(1, 197), (206, 214)],
             "onecc": [(198, 205)],
             "pink": [(216, 226)],
             "twocc": [(80, 87)]}
-win_spec = {"act": [(217, 244)],
+_win_spec = {"act": [(217, 244)],
             "neutral": [(10, 197), (206, 216), (245, 245)],
             "onecc": [(198, 205)],
             "pink": [(1, 9), (246, 254)],
             "twocc": [(80, 87)]}
 
 palettes = {
-    "DOS": TiqPalette(palette=palettes_ttd.dos, **dos_spec),
-    "WIN": TiqPalette(palette=palettes_ttd.win, **win_spec),
-    "DOS_TOYLAND": TiqPalette(palette=palettes_ttd.dos_toyland, **dos_spec),
-    "WIN_TOYLAND": TiqPalette(palette=palettes_ttd.win_toyland, **win_spec)
+    "DOS": _TiqPalette(palette=palettes_ttd.dos, **_dos_spec),
+    "WIN": _TiqPalette(palette=palettes_ttd.win, **_win_spec),
+    "DOS_TOYLAND": _TiqPalette(palette=palettes_ttd.dos_toyland, **_dos_spec),
+    "WIN_TOYLAND": _TiqPalette(palette=palettes_ttd.win_toyland, **_win_spec)
 }
