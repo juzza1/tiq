@@ -30,6 +30,8 @@ class TiqPalette:
                    "desc": "Background blue, transparent ingame."},
             "NEUTRAL": {"colors": self.getr(neutral),
                         "desc": "Colors with no special behaviour."},
+            "NONE": {"colors": set(),
+                     "desc": "No colors."},
             "ONECC": {"colors": self.getr(onecc),
                       "desc": "Primary company colors."},
             "PINK": {"colors": self.getr(pink),
