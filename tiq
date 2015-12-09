@@ -233,7 +233,8 @@ def main():
         epilog=range_info()
     )
     parser.add_option(
-        "-d", "--dry-run", action="store_true", help="Do not write the image."
+        "-d", "--dry-run", action="store_true",
+        help="Do not write the output image."
     )
     range_metavar = "[i]RANGE[,[i]RANGE]..."
     # TODO
