@@ -11,7 +11,6 @@
 # with this software. If not, see
 # <http://creativecommons.org/publicdomain/zero/1.0/>. 
 #
-from PIL import Image
 
 import palettes_ttd
 
