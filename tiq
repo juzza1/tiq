@@ -1,4 +1,280 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+#
+# TIQ - TTD Image Quantizer
+#
+# by juzza1
+#
+# To the extent possible under law, the author(s) have dedicated all copyright
+# and related and neighboring rights to this software to the public domain
+# worldwide. This software is distributed without any warranty. 
+#
+# You should have received a copy of the CC0 Public Domain Dedication along
+# with this software. If not, see
+# <http://creativecommons.org/publicdomain/zero/1.0/>. 
+#
 
-import main
-main.main()
+import io
+import math 
+import optparse
+import os
+import re
+import subprocess
+import sys
+import textwrap
+
+from PIL import Image
+
+import palettes_tiq
+
+
+class KdTree:
+    pass
+
+
+class Quantizer:
+
+    def __init__(self, src_colors, dest_colors):
+        self.src_colors = src_colors
+        self.dest_colors = dest_colors
+
+    def brute(self):
+        euc = lambda x, y: (x[0]-y[0])**2 + (x[1]-y[1])**2 + (x[2]-y[2])**2
+        mapping = {}
+        best_match = 0
+        for sc in self.src_colors:
+            quantized_min = 3 * (255**2)
+            for dc in self.dest_colors:
+                quantized = euc(sc, dc)
+                if quantized < quantized_min:
+                    quantized_min = quantized
+                    best_match = dc
+            mapping[sc] = best_match
+        return mapping
+
+    def sp(self):
+        import numpy as np
+        import scipy.spatial
+        colors_numpy = np.array(list(self.src_colors))
+        palette_numpy = np.array(list(self.dest_colors))
+        dists = scipy.spatial.distance.cdist(
+            colors_numpy, palette_numpy, "euclidean")
+        mapping = {}
+        for i, sc in enumerate(colors_numpy):
+            mapping[tuple(sc)] = tuple(palette_numpy[np.argmin(dists[i])])
+        return mapping
+
+
+def equit(error):
+    prog = os.path.basename(sys.argv[0])
+    print("{}: ERROR: {}".format(prog, error), file=sys.stderr)
+    sys.exit(1)
+
+
+def rangize(values):
+
+    def format_range(first, second):
+        if first == second:
+            return str(first)
+        else:
+            return "{}-{}".format(first, second)
+        
+    if len(values) == 0:
+        return None
+    values = sorted(list(values))
+    out = []
+    first = second = values[0]
+    for v in values[1:]:
+        if v != second and v != second + 1:
+            out.append(format_range(first, second))
+            first = v
+        second = v
+    out.append(format_range(first, second))
+    return out
+
+
+def ttd_image(img, tiq_palette, mapping):
+    """
+    Insert pixels into the new image, using a mapping to choose the best
+    replacement from the TTD palette for each unique color.
+    """
+    img_out = Image.new('P', img.size, color=None)
+    pil_palette = [v for t in tiq_palette.palette for v in t]
+    img_out.putpalette(pil_palette)
+    pixels_in = img.load()
+    pixels_out = img_out.load()
+    for y in range(img.size[1]):
+        for x in range (img.size[0]):
+            pixels_out[x, y] = tiq_palette.rgb_to_i[mapping[pixels_in[x, y]]]
+    return img_out
+
+
+def rgb(img, bg):
+    """
+    Force the image to RGB mode.
+
+    For RGBA images, convert all transparent pixels to bg color.
+    """
+    if img.mode == 'RGBA':
+        pixels = img.load()
+        for y in range(img.size[1]):
+            for x in range (img.size[0]):
+                if pixels[x, y][3] < 255:
+                    pixels[x, y] = bg
+    img = img.convert('RGB')
+    return img
+
+
+def unique_colors(img):
+    """Set of all colors used in the image."""
+    colors = {i[1] for i in img.getcolors(maxcolors=img.size[0]*img.size[1])}
+    return colors
+
+
+def run(img, tiq_palette, q_colors, nq_colors):
+    img = rgb(img, tiq_palette.ranges["BG"])
+    src_colors = unique_colors(img)
+    quantizer = Quantizer(src_colors, q_colors)
+    try:
+        __import__('numpy')
+        __import__('scipy')
+    except ImportError:
+        mapping = quantizer.brute()
+    else:
+        mapping = quantizer.sp()
+    for c in nq_colors:
+        mapping[c] = c
+    img_out = ttd_image(img, tiq_palette, mapping)
+    return img_out
+
+
+def range_info():
+    pal = palettes_tiq.palettes["DOS"]
+    info_start = (
+        "RANGE corresponds with the palette indices in the 8-bit "
+        "OpenTTD palette. It can be a single integer in the range "
+        "0-255, or a range of integers separated by a single dash. "
+        "It can also be one of the identifiers mentioned below. "
+        "Prepending RANGE with ! inverses the range."
+    )
+    r_info = []
+    for k, v in sorted(pal.ranges.items()):
+        this = [k]
+        this.append(
+            "Ind{} in the DOS palette: {}".format(
+                "ices" if len(v["colors"]) > 1 else "ex",
+                ", ".join(rangize([pal.rgb_to_i[c] for c in v["colors"]])))
+        )
+        this.append(v["desc"])
+        r_info.append('\n'.join(this))
+    info_full = "{}\n\n{}".format(info_start, "\n\n".join(r_info))
+    out = []
+    try:
+        width = subprocess.check_output(["stty", "size"]).split()[1]
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        width = None
+    else:
+        width = max(1, int(width) - 10)
+    for line in info_full.splitlines():
+        if width:
+            out.append('\n'.join(textwrap.wrap(line, width=width)))
+        else:
+            out.append('\n'.join(textwrap.wrap(line)))
+    return '\n'.join(out)
+
+
+
+def main():
+    """Command-line argument parsing"""
+
+    def check_ranges(ranges, palette):
+        out = set()
+        for r in ranges.split(','):
+            if r in palette.ranges:
+                out.update(palette.ranges[r]["colors"])
+            else:
+                m = re.match(r"(\d+)(?:-(\d+))?", r)
+                if not m:
+                    raise ValueError
+                start = int(m.group(1))
+                end = int(m.group(2)) if m.group(2) else start
+                if start > end or not (0 <= start <= 255 and 0 <= end <= 255):
+                    raise ValueError
+                out.update(palette.getr([(start, end)]))
+        return out
+
+    # A hack to remove epilog formatting
+    class TiqParser(optparse.OptionParser):
+        def format_epilog(self, formatter):
+            if self.epilog:
+                return '\n' + self.epilog + '\n'
+            return ""
+
+    parser = TiqParser(
+        usage="%prog [options] input-file"#, epilog=range_info()
+    )
+    parser.add_option(
+        "-d", "--dry-run", action="store_true", help="Do not write the image."
+    )
+    range_metavar = "[!]RANGE[,[!]RANGE]..."
+    # TODO
+    parser.add_option(
+        "-m", "--mask",
+        help=(
+            "Only apply quantization to pixel positions that are "
+            "opaque in FILE. No palette conversion will occur in the "
+            "output image, but palette defined with -p will be used "
+            "for quantization. It is an error if the dimensions of "
+            "FILE differ from input-file, or if the MASK-FILE contains "
+            "semi-transparent pixels."
+        ), metavar="FILE"
+    )
+    def_nq = "ACT,BG,ONECC,WHITE"
+    parser.add_option(
+        "-n", "--no-quantize-colors", default=def_nq,
+        help=("Use these colors only if the same color is found in "
+              "input-file. Default: {}").format(def_nq),
+        metavar=range_metavar
+    )
+    parser.add_option(
+        "-o", "--output", help="Write to FILE instead of standard output.",
+        metavar="FILE")
+    def_q = "NEUTRAL,TWOCC"
+    parser.add_option(
+        "-q", "--quantize-colors", default=def_q,
+        help=("Use these colors when finding the best match for the "
+              "colors in input-file. Default: {}").format(def_q),
+        metavar=range_metavar
+    )
+    pal_choices = ["DOS", "WIN", "DOS_TOYLAND", "WIN_TOYLAND"]
+    parser.add_option(
+        "-p", "--palette", choices=pal_choices, default="DOS",
+        help="One of {}. Default: DOS".format(
+            ' '.join(pal_choices)), type="choice"
+    )
+    parser.add_option(
+        "-v", "--verbose", action="store_true",
+        help="Print info about converted pixels."
+    )
+
+    (options, args) = parser.parse_args()
+    palette = palettes_tiq.palettes[options.palette]
+    colors = {}
+    for c, opt in zip(("q_colors", "nq_colors"),
+                      (options.quantize_colors, options.no_quantize_colors)
+                     ):
+        try:
+            colors[c] = check_ranges(opt, palette)
+        except ValueError:
+            equit("Invalid range: {}".format(opt))
+    if not colors["q_colors"].isdisjoint(colors["nq_colors"]):
+        equit("Overlapping ranges.")
+    if not args:
+        img = Image.open(io.BytesIO(sys.stdin.buffer.read()))
+    else:
+        img = Image.open(args[0])
+    img = run(img, palette, **colors)
+    img.save("Vittu.png")
+
+
+if __name__ == '__main__':
+    main()
