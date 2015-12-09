@@ -217,6 +217,7 @@ def main():
     )
     range_metavar = "[!]RANGE[,[!]RANGE]..."
     # TODO
+    """
     parser.add_option(
         "-m", "--mask",
         help=(
@@ -228,6 +229,7 @@ def main():
             "semi-transparent pixels."
         ), metavar="FILE"
     )
+    """
     def_nq = "ACT,BG,ONECC,WHITE"
     parser.add_option(
         "-n", "--no-quantize-colors", default=def_nq,
