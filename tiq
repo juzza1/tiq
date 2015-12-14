@@ -303,7 +303,9 @@ def main():
         img = Image.open(sys.stdin.buffer)
     else:
         img = Image.open(args[0])
-    img = run(img, palette, **colors, verbosity=options.verbose)
+    kwargs = colors
+    kwargs["verbosity"] = options.verbose
+    img = run(img, palette, **kwargs)
     if not options.dry_run:
         if options.output:
             if ".png" in options.output.lower():
