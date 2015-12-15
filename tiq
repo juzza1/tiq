@@ -301,7 +301,7 @@ def main():
     if options.verbose and not options.output:
         equit("Cannot output both image and verbose output to stdout.")
     if not args:
-        img = Image.open(io.BytesIO(sys.stdin.read("rb")))
+        img = Image.open(io.BytesIO(sys.stdin.buffer.read()))
     else:
         img = Image.open(args[0])
     kwargs = colors
