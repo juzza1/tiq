@@ -118,7 +118,7 @@ def ttd_image(img, tiq_palette, mapping, verbose=False):
     return img_out
 
 
-def rgb(img, bg):
+def rgb(img, bg, alpha):
     """Force the image to RGB mode.
 
     For RGBA images, convert all transparent pixels to bg color.
@@ -127,7 +127,7 @@ def rgb(img, bg):
         pixels = img.load()
         for y in range(img.size[1]):
             for x in range (img.size[0]):
-                if pixels[x, y][3] < 255:
+                if pixels[x, y][3] < alpha:
                     pixels[x, y] = bg
     img = img.convert('RGB')
     return img
@@ -139,9 +139,9 @@ def unique_colors(img):
     return colors
 
 
-def run(img, tiq_palette, q_colors, nq_colors, verbosity):
+def run(img, tiq_palette, alpha, q_colors, nq_colors, verbosity):
     """Execute the the image conversion pipeline."""
-    img = rgb(img, list(tiq_palette.ranges["BG"]["colors"])[0])
+    img = rgb(img, list(tiq_palette.ranges["BG"]["colors"])[0], alpha)
     src_colors = unique_colors(img)
     quantizer = Quantizer(src_colors, q_colors)
     try:
@@ -234,6 +234,15 @@ def main():
         epilog=range_info()
     )
     parser.add_option(
+        "-a", "--alpha-threshold", default=254,
+        help=("If input image contains semi-transparent pixels, then "
+              "pixels with alpha lower than the threshold will be "
+              "converted to background color, and everything else to "
+              "full alpha. Default: 254"),
+        metavar="THRESHOLD",
+        type=int
+    )
+    parser.add_option(
         "-d", "--dry-run", action="store_true",
         help="Do not write the output image."
     )
@@ -300,13 +309,15 @@ def main():
         equit("Overlapping ranges.")
     if options.verbose and not options.output:
         equit("Cannot output both image and verbose output to stdout.")
+    if not 255 >= options.alpha_threshold >= 0:
+        equit("Alpha threshold must be between 0-255")
     if not args:
         img = Image.open(io.BytesIO(sys.stdin.buffer.read()))
     else:
         img = Image.open(args[0])
     kwargs = colors
     kwargs["verbosity"] = options.verbose
-    img = run(img, palette, **kwargs)
+    img = run(img, palette, options.alpha_threshold, **kwargs)
     if not options.dry_run:
         if options.output:
             if ".png" in options.output.lower():
