@@ -13,6 +13,7 @@
 # <http://creativecommons.org/publicdomain/zero/1.0/>. 
 #
 
+import io
 import optparse
 import os
 import re
@@ -300,7 +301,7 @@ def main():
     if options.verbose and not options.output:
         equit("Cannot output both image and verbose output to stdout.")
     if not args:
-        img = Image.open(sys.stdin.buffer)
+        img = Image.open(io.BytesIO(sys.stdin.read()))
     else:
         img = Image.open(args[0])
     kwargs = colors
