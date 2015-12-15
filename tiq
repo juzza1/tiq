@@ -141,7 +141,7 @@ def unique_colors(img):
 
 def run(img, tiq_palette, q_colors, nq_colors, verbosity):
     """Execute the the image conversion pipeline."""
-    img = rgb(img, tiq_palette.ranges["BG"])
+    img = rgb(img, list(tiq_palette.ranges["BG"]["colors"])[0])
     src_colors = unique_colors(img)
     quantizer = Quantizer(src_colors, q_colors)
     try:
