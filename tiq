@@ -111,7 +111,7 @@ def ttd_image(img, tiq_palette, mapping, verbose=False):
     pixels_out = img_out.load()
     for y in range(img.size[1]):
         for x in range (img.size[0]):
-            if verbose:
+            if verbose and pixels_in[x, y] != mapping[pixels_in[x, y]]:
                 print("x:{}, y:{}, {} -> {}".format(x, y, pixels_in[x, y],
                                                     mapping[pixels_in[x, y]]))
             pixels_out[x, y] = tiq_palette.rgb_to_i[mapping[pixels_in[x, y]]]
@@ -229,8 +229,8 @@ def main():
             return ""
 
     parser = TiqParser(
-        usage=("%prog [options] [input-file]\n\n"
-               "Omit input-file to read from stdin."),
+        usage=('%prog [options] input-file\n\n'
+               'Specify input-file as "-" to read from stdin.'),
         epilog=range_info()
     )
     adef = 254
@@ -307,12 +307,16 @@ def main():
     if not colors["q_colors"]:
         equit("Must define at least one color to quantize into.")
     if not colors["q_colors"].isdisjoint(colors["nq_colors"]):
-        equit("Overlapping ranges.")
-    if options.verbose and not options.output:
+        equit("Overlapping color ranges.")
+    if options.verbose and not options.dry_run and not options.output:
         equit("Cannot output both image and verbose output to stdout.")
     if not 255 >= options.alpha_threshold >= 0:
         equit("Alpha threshold must be between 0-255")
-    if not args:
+    if len(args) == 0:
+        equit("No input file specified.")
+    elif len(args) > 1:
+        equit("Too many arguments.")
+    if args[0] == '-':
         img = Image.open(io.BytesIO(sys.stdin.buffer.read()))
     else:
         img = Image.open(args[0])
