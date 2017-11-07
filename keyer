@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+
+from PIL import Image, ImageDraw, ImageFont
+
+import palettes_ttd
+
+
+def posint(int_str):
+    num = int(int_str)
+    if num <= 0:
+        raise argparse.ArgumentTypeError("multiplier must be at least 1")
+    return num
+
+
+def iter_pal(multiplier):
+    for y in range(16):
+        for x in range(16):
+            yield x*multiplier, y*multiplier, x + y*16
+
+
+def palette(multip):
+    size = 16*multip
+    im = Image.new('P', (size, size))
+    im.putpalette([c for t in palettes_ttd.dos for c in t])
+    d = ImageDraw.Draw(im)
+    for x, y, index in iter_pal(multip):
+        d.rectangle([(x, y), (x+multip, y+multip)], fill=index)
+    return im
+
+
+def key_palette(image, hex_=False):
+    d = ImageDraw.Draw(image)
+    size = image.size[0]
+    multip = size // 16
+    for x, y, index in iter_pal(multip):
+        if hex_:
+            text = format(index, 'X')
+        else:
+            text = str(index)
+        bg = d.textsize(text)
+        d.rectangle([(x, y), (x+bg[0], y+bg[1])], fill=255)
+        d.text((x+1, y), text, fill=1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Output an image of ttd dos palette")
+    parser.add_argument(
+        '-k', '--write-keys', choices=('D', 'X'), dest='key',
+        help=("write the indices of each color in base-10 (D) "
+              "or hexadecimal (X), multiplier of at least 20 is recommended"))
+    parser.add_argument(
+        '-m', '--multiplier', default=1,
+        help="multiple the output 16x16 grid by this amount", type=posint)
+    parser.add_argument(
+        'output', nargs='?', help="write to output file instead of stdout")
+    args = parser.parse_args()
+    im = palette(args.multiplier)
+    if args.key:
+        key_palette(im, args.key == 'X')
+    if args.output:
+        dest = open(args.output, 'wb')
+    else:
+        dest = sys.stdout.buffer
+    im.save(dest, format='png', optimize=True)
+    dest.close()
+
+
+if __name__ == "__main__":
+    main()
